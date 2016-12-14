@@ -8,12 +8,8 @@ My general approach to this challenge was the following:
   divideStudents()
 
 3. Calculate Item Discrimination
-  
+  calcDiscrimination()
 */
-
-
-
-
 
 
 // bring in json data and set to variable
@@ -168,7 +164,7 @@ computeItemDiscrimination(array)
 Reflections:
 
 I think one big area that is left for futher interpretation is how a student's score is 
-calculated. By allowing student's to not answer questions, it presents a problem as to how 
+calculated. By allowing students to not answer questions, it presents a problem as to how 
 to determine if a student did well, poorly, or something inbetween. Without knowing the 
 context of the test situation, my best estimate would be that not answering a question is 
 the same as answering incorrectly and should therefore factor in negatively in the 
@@ -185,7 +181,8 @@ Further, partitioning students into separate groups could be problematic if the 
 value initially in the middle is the only value in the lowest, as all members of the lowest 
 would be pushed to the middle.
 
-Solving for some of these edge cases and others would make for an algorithm that could respond to a greater variety of data inputs. 
+Solving for some of these edge cases and others would make for an algorithm that could 
+respond to a greater variety of data inputs. 
 
 */
 
