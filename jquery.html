@@ -18,16 +18,21 @@
     // toggles the visibility of the target
     if (target.is(':visible')) {
       target.hide();
+      console.log(target.css('height'))
     } else {
       target.show();
+      console.log(target.css('height  '))
     }
     
     // says goodbye if it was hidden
     if (target.is(':hidden')){
+      console.log(target)
       alert('goodbye, cruel world!');
     }
   });
 });
+  /*
+    The problem is that the condition 'if target.is(:hidden)' never resolves to true when fadeOut/fadeIn are called. This is because the element's opacity, display and visibility are affected by fadeOut/fadeIn but it is not hidden. For an element to be hidden, it must not possess width or height on the page. In order to get a similar effect and also trigger the alert window, you can use hide() and show() which will edit the width and height of the object, making it hidden.
+  */
 </script>
 
-<!-- rather than fading in and out, you must use hide and show to then call the hidden property by the is function -->

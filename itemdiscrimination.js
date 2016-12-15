@@ -1,164 +1,141 @@
 /*
 My general approach to this challenge was the following:
 1. Data Cleaning
-  collectData()
+  loadData()
 
 2. Dividing Students
-  sortStudentScore()
-  divideStudents()
+  findCohorts()
 
 3. Calculate Item Discrimination
-  calcDiscrimination()
+  computeScores()
 */
 
 
-// bring in json data and set to variable
 var fs = require('fs');
-var array = JSON.parse(fs.readFileSync('answers.json'))
-
-var top;
-var middle;
-var bottom;
-var questionScores = {};
-var overallScores = [];
 
 
+function DiscriminationScores() {
+  this.questionScores = {}
+  this.userScores = {}
+  this.topCohort = []
+  this.bottomCohort = []
+}
 
-// - Check the student JSON for edge case
-//     a)less than 3 students 
-// - Build two data structures
-//   a) questionScores, an object consisting of a question whose value is another object
-//      whose value is a student id whose value is either true or false. This will tell 
-//      me for a given question if a particular student got the question right or not
-//   b) overallScores, a 2D array where each nested array consists of user id and that 
-//      user's score. Score is based on number of correct answers divided by total 
-//      questions answered
+DiscriminationScores.prototype.main = function(inputFile) {
+  this.loadData(inputFile)
+  this.findCohorts()
+  return this.computeScores()
+}
 
-function collectData(array){
+/*
+- Check the data for edge case
+    a)less than 3 students 
+- Build two data structures
+  a) questionScores, an object consisting of a question whose value is another object whose value is a student id whose value is either true or false. This will tell me for a given question if a particular student got the question right or not
+  b) userScores, an object with a key of user id and value of the student's score. 
+*/
 
-  if(array.length < 3){
+DiscriminationScores.prototype.loadData = function(inputFile){
+  var userId = null
+  var data = JSON.parse(fs.readFileSync('answers.json'))
+
+  if(data.length < 3){
     return 'Not enough students'
   }
 
-  var currentStudent = array[0].user_id;
-  var totalCorrect = 0;
-  var totalAnswered = 0;
+  for(var i = 0; i<data.length; i++){
+    this.questionScores[data[i].question] = this.questionScores[data[i].question] || {};
+    this.questionScores[data[i].question][data[i].user_id] = data[i].correct;
 
-  for(var i = 0; i<array.length; i++){
-    
-    if(questionScores[array[i].question] === undefined){
-      questionScores[array[i].question] = {}
-    } else {
-      questionScores[array[i].question][array[i].user_id] = array[i].correct
+    this.userScores[data[i].user_id] = this.userScores[data[i].user_id] || {num_correct: 0, num_answered: 0};
+    this.userScores[data[i].user_id].num_answered++;
+    if (data[i].correct === true) {
+      this.userScores[data[i].user_id].num_correct++;
     }
-
-
-    if(i === array.length - 1){
-      if(array[i].correct === true){
-        totalCorrect++
-      }
-      overallScores.push([currentStudent, score(totalCorrect, totalAnswered)])
-
-    }else if(array[i].user_id !== currentStudent){   
-      overallScores.push([currentStudent, score(totalCorrect, totalAnswered)])
-
-      currentStudent = array[i].user_id
-      totalCorrect = 0
-      totalAnswered = 0
-
-    } else {
-      if(array[i].correct === true){
-        totalCorrect++
-      }
-    }
-    totalAnswered++
   }
 
-
+  for(userId in this.userScores) {
+    this.userScores[userId] = this.userScores[userId].num_correct / this.userScores[userId].num_answered
+  }
 }
 
-function score(totalCorrect, totalAnswered){
-  return totalCorrect/totalAnswered
-}
+/* 
+  - Partition students into groups
+   Here I divide the students into cohorts. Initially I sort the students based on their 
+   score, then find a bottom and top index by dividing the array into thirds. I check if 
+   there are ties for the elements just outside of the top or bottom and return an error 
+   message if the bottom index passes the top index or gets bigger than half the size of 
+   the list.
+*/
 
 
+DiscriminationScores.prototype.findCohorts = function() {
+  var userIds = Object.keys(this.userScores)
+  var that = this
 
-// - Sort students by score
-// - Partition students into three groups
-//   Based on their score, I divide the students into three groups, top, middle and bottom. 
-//   For any shared values between top and middle or bottom and middle, the students are 
-//   placed in the middle group. This means that there will never be students with the same 
-//   score that are in different groups
+  userIds.sort(function(user1, user2) {    
+    return that.userScores[user1] - that.userScores[user2]
+  })
 
-function sortStudentScore(overallScores){
-  overallScores.sort(function(a, b){
-    return parseFloat(a[1]) - parseFloat(b[1])
-  }) 
-}
-
-
-function divideStudents(overallScores){
-  bottomIdx = Math.floor(overallScores.length/3);
-  middleIdx = Math.floor(2 * overallScores.length/3);
-  bottom = overallScores.slice(0, bottomIdx);
-  middle = overallScores.slice(bottomIdx, middleIdx);
-  top = overallScores.slice(middleIdx, overallScores.length)
+  var bottomIdx = userIds.length/3;
+  var topIdx = (2*userIds.length/3)
   
-  while(top[0][1] === middle[middle.length-1][1]){
-    middle.push(top.shift())
-  }
+  while (this.userScores[userIds[bottomIdx]] == this.userScores[userIds[bottomIdx+1]]) {
+    bottomIdx++
 
-  while(middle[0][1] === bottom[bottom.length-1][1]){
-    middle.unshift(bottom.pop())
-  }
-
-}
-
-// - I iterate the questionScores object, and for each question, look at the top and bottom 
-//   students, tallying the number of correct answers respectively. Then I divide that 
-//   number by the size of the respective group and subtract the top group's number from 
-//   the bottom group's to find the item discrimination for a given question.
-
-function calcDiscrimination(){
-  var topCorrect = 0
-  var bottomCorrect = 0
-  var items = []
-
-  for(var property in questionScores) {
-    if(questionScores.hasOwnProperty(property)) {
-      for(var i = 0; i < top.length; i++){
-        if(questionScores[property][top[i][0]] === true){
-          topCorrect++
-        }
-      }
-      for(var i = 0; i < bottom.length; i++){
-        if(questionScores[property][bottom[i][0]] === true){
-          bottomCorrect++
-        }
-      }
+    if (bottomIdx >= topIdx || bottomIdx >= userIds.length/2){
+      return 'Too many similar scores'
     }
-    var questionDiscrimination = (topCorrect/top.length) - (bottomCorrect/bottom.length);
-    items.push([property, questionDiscrimination])
-    topCorrect = 0
-    bottomCorrect = 0
   }
 
-  return items
+  while (this.userScores[userIds[topIdx]] == this.userScores[userIds[topIdx-1]]) {
+    topIdx--
+  }
+  
+
+  this.bottomCohort = userIds.slice(0, bottomIdx)
+  this.topCohort = userIds.slice(topIdx, userIds.length)
 }
 
 
-// Run functions inside of a single function for ease of use.
-// I think this reinforces the modularity of the functions' respective purposes and
-// should lead to easier development in the future
-function computeItemDiscrimination(array){
-  collectData(array);
-  sortStudentScore(overallScores);
-  divideStudents(overallScores);
-  return calcDiscrimination();
+/*
+  To compute the scores I just iterate through the questions in questionScores and the 
+  corresponding question takers in the top and bottom cohort, keeping track of the students 
+  who answered correctly and dividing by the cohort size before subtracting for the final 
+  answer
+*/
+
+DiscriminationScores.prototype.computeScores = function() {
+  var discriminationScores = {}
+  var questionId, qScores, topScore, bottomScore
+  var totals = 0
+
+  for (questionId in this.questionScores) {
+    qScores = this.questionScores[questionId]
+
+    topScore = this.topCohort.reduce(function(accum, userId) {
+      if (userId in qScores && qScores[userId]) {
+         return accum+1
+      } else {
+        return accum
+      }
+    }, 0) / this.topCohort.length 
+
+    bottomScore = this.bottomCohort.reduce(function(accum, userId) {
+      if (userId in qScores && qScores[userId]) {
+        return accum+1
+      } else {
+        return accum
+      }
+    }, 0) / this.bottomCohort.length
+
+    discriminationScores[questionId] = topScore - bottomScore
+  }
+  return discriminationScores
 }
 
-
-computeItemDiscrimination(array)
+var d = new DiscriminationScores()
+console.log(d.main('answers.json'))
 
 /*
 Reflections:
@@ -171,18 +148,9 @@ the same as answering incorrectly and should therefore factor in negatively in t
 student's score. But the best answer to this would likely take into account the context in 
 which students are taking the test.
 
-Edge cases:
-
-Beyond developing a more sophisticated way of calculating scores, areas that could be 
-improved are related to data validation. For example, if all or most of the students have 
-the same score, this calculation may not give insightful results.
-
-Further, partitioning students into separate groups could be problematic if the lowest 
-value initially in the middle is the only value in the lowest, as all members of the lowest 
-would be pushed to the middle.
-
-Solving for some of these edge cases and others would make for an algorithm that could 
-respond to a greater variety of data inputs. 
 
 */
+
+
+
 
